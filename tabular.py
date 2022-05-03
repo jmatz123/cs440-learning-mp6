@@ -89,7 +89,7 @@ class TabQPolicy(QPolicy):
         next_state_d = self.discretize(next_state)
 
         C = .1
-        denominator = C+self.nums[curr_state_d][action]
+        denominator = C+self.model[curr_state_d][action]
         self.lr = min(self.lr, C/denominator)
 
         if done == True :
@@ -102,8 +102,8 @@ class TabQPolicy(QPolicy):
         second_val = self.lr * (target - self.model[curr_state_d][action])
         self.model[curr_state_d][action] = first_val + second_val
 
-        subtract = target, self.model[curr_state_d][action]
-        return np.square(np.subtract(subtract))
+        subtract = self.model[curr_state_d][action]
+        return np.square(np.subtract(target, subtract))
 
     def save(self, outpath):
         """
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     statesize = env.observation_space.shape[0]
     actionsize = env.action_space.n
-    policy = TabQPolicy(env, buckets=(2, 8, 2, 8), actionsize=actionsize, lr=args.lr, gamma=args.gamma)
+    policy = TabQPolicy(env, buckets=(4, 8, 4, 8), actionsize=actionsize, lr=args.lr, gamma=args.gamma)
 
     utils.qlearn(env, policy, args)
 
