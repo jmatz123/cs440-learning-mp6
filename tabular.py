@@ -1,7 +1,7 @@
 from distutils.command.build_scripts import first_line_re
 import math
 
-from regex import R
+# from regex import R
 
 import gym
 import numpy as np
