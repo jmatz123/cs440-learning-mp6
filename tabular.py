@@ -123,7 +123,8 @@ if __name__ == '__main__':
 
     statesize = env.observation_space.shape[0]
     actionsize = env.action_space.n
-    policy = TabQPolicy(env, buckets=(4, 8, 4, 8), actionsize=actionsize, lr=args.lr, gamma=args.gamma)
+    policy = TabQPolicy(env, buckets=(5, 8, 5, 8), actionsize=actionsize, lr=args.lr, gamma=args.gamma)
+    # policy = TabQPolicy(env, buckets=(4, 8, 4, 8), actionsize=actionsize, lr=args.lr, gamma=args.gamma) # best score
 
     utils.qlearn(env, policy, args)
 
