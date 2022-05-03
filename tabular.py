@@ -1,3 +1,4 @@
+from distutils.command.build_scripts import first_line_re
 import math
 
 from regex import R
@@ -31,17 +32,18 @@ class TabQPolicy(QPolicy):
         self.actionsize = actionsize
         self.lr = lr
         self.gamma = gamma
+        self.model = np.zeros(self.buckets + (actionsize,)) if model is None else model
 
         # table to store values
         self.nums = dict()
 
-        if model is not None :
-            self.model = model
-        else :
-            # may need to change this
-            comma = (actionsize,)
-            self_vector = self.buckets + comma
-            self.model = np.zeros(self_vector)
+        # if model is not None :
+        #     self.model = model
+        # else :
+        #     # may need to change this
+        #     comma = (actionsize,)
+        #     self_vector = self.buckets + comma
+        #     self.model = np.zeros(self_vector)
 
     def discretize(self, obs):
         """
@@ -66,23 +68,10 @@ class TabQPolicy(QPolicy):
         @return qvals: the q values for the state for each action. 
         """
         first_state = states[0]
-        start_state = self.discretize(first_state)
+        discrete_state = self.discretize(first_state)
+        arr_model= [self.model[discrete_state]]
 
-        start_pair = (1,3)
-        values_of_q = np.zeros(start_pair)
-
-        # set qvals
-        zero_addition = (0,)
-        zero_index = start_state + zero_addition
-        values_of_q[0][0] = self.model[zero_index]
-
-        one_addition = (1,)
-        one_index = start_state + one_addition
-        values_of_q[0][1] = self.model[one_index]
-
-        two_addition = (2,)
-        two_index = start_state + two_addition
-        values_of_q[0][2] = self.model[two_index]
+        return np.array(arr_model)
 
     def td_step(self, state, action, reward, next_state, done):
         """
@@ -96,40 +85,25 @@ class TabQPolicy(QPolicy):
         @param done: true if episode has terminated, false otherwise
         @return loss: total loss the at this time step
         """
-        curr = self.discretize(state)
-        curr_index = curr + (action,)
-        values_of_q = self.model[curr_index]
+        curr_state_d = self.discretize(state)
+        next_state_d = self.discretize(next_state)
 
-        # lrate
-        const_val = .01
-        self.nums[values_of_q] = self.nums.get(values_of_q, 0) + 1
+        C = .1
+        denominator = C+self.nums[curr_state_d][action]
+        self.lr = min(self.lr, C/denominator)
 
-        denominator = self.nums[values_of_q] + const_val
-        min_lr = const_val / denominator
-        self.lr = min(self.lr, min_lr)
-
-        # next
-        n_state = self.discretize(next_state)
-        ###TODO figues out goal_position
         if done == True :
-            rew = 1.0
-            result = rew
-
+            target = reward
         else :
-            # check states
-            first = self.model[n_state + (0,)]
-            second = self.model[n_state + (1,)]
-            third = self.model[n_state + (2,)]
-            max_val = max(first, second, third)
-
-            result = (self.gamma * max_val) + rew
+            mult = np.amax(self.model[next_state_d])
+            target = reward + (self.gamma * mult)
         
-        diff_state = curr + (action,)
-        use_lr = (result - values_of_q) * self.lr
-        self.model[diff_state] = values_of_q + use_lr
+        first_val = self.model[curr_state_d][action]
+        second_val = self.lr * (target - self.model[curr_state_d][action])
+        self.model[curr_state_d][action] = first_val + second_val
 
-        inner = (values_of_q - result)
-        return inner*inner
+        subtract = target, self.model[curr_state_d][action]
+        return np.square(np.subtract(subtract))
 
     def save(self, outpath):
         """
@@ -142,14 +116,14 @@ if __name__ == '__main__':
     args = utils.hyperparameters()
 
     env = gym.make('CartPole-v1')
-    env.reset(seed=42) # seed the environment
-    np.random.seed(42) # seed numpy
-    import random
-    random.seed(42)
+    # env.reset(seed=42) # seed the environment
+    # np.random.seed(42) # seed numpy
+    # import random
+    # random.seed(42)
 
     statesize = env.observation_space.shape[0]
     actionsize = env.action_space.n
-    policy = TabQPolicy(env, buckets=(1, 1, 1, 1), actionsize=actionsize, lr=args.lr, gamma=args.gamma)
+    policy = TabQPolicy(env, buckets=(2, 8, 2, 8), actionsize=actionsize, lr=args.lr, gamma=args.gamma)
 
     utils.qlearn(env, policy, args)
 
