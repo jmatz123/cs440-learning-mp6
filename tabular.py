@@ -95,7 +95,7 @@ class TabQPolicy(QPolicy):
         if done == True :
             target = reward
         else :
-            mult = np.amax(self.model[next_state_d])
+            mult = np.amax(self.model[next_state_d][action])
             target = reward + (self.gamma * mult)
         
         first_val = self.model[curr_state_d][action]
